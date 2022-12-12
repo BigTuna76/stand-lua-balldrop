@@ -3,15 +3,9 @@
 -- A Lua Script for the Stand mod menu for GTA5
 -- A silly utility that unleashed hordes of oversized soccer balls
 -- Special thanks to hexarobi for allowing me to steal much of the content of this script
--- https://github.com/bigtuna/stand-lua-balldrop
+-- https://github.com/bigtuna76/stand-lua-balldrop
 
 local SCRIPT_VERSION = "0.1"
-local AUTO_UPDATE_BRANCHES = {
-    { "main", {}, "More stable, but updated less often.", "main", },
-    { "dev", {}, "Cutting edge updates, but less stable.", "dev", },
-}
-local SELECTED_BRANCH_INDEX = 2
-local selected_branch = AUTO_UPDATE_BRANCHES[SELECTED_BRANCH_INDEX][1]
 
 ---
 --- Auto-Updater Lib Install
@@ -41,18 +35,13 @@ end
 if auto_updater == true then error("Invalid auto-updater lib. Please delete your Stand/Lua Scripts/lib/auto-updater.lua and try again") end
 
 local auto_update_config = {
-    source_url="https://raw.githubusercontent.com/bigtuna/stand-lua-balldrop/main/BallDrop.lua",
+    source_url="https://raw.githubusercontent.com/bigtuna76/stand-lua-balldrop/main/BallDrop.lua",
     script_relpath=SCRIPT_RELPATH,
-    switch_to_branch=selected_branch,
+    switch_to_branch="main",
     verify_file_begins_with="--",
     check_interval=604800,
     dependencies={}
 }
-
--- local update_success
--- if config.auto_update then
---     update_success = auto_updater.run_auto_update(auto_update_config)
--- end
 
 util.require_natives(1651208000)
 
@@ -97,7 +86,7 @@ local function delete_spawned_object(spawned_object)
     entities.delete_by_handle(spawned_object.handle)
 end
 
-local function cleanup_spawned_objects()
+local function cleanup_expired_objects()
     local current_time = util.current_time_millis()
     for i, spawned_object in pairs(spawned_objects) do
         local lifetime = current_time - spawned_object.spawn_time
@@ -112,6 +101,13 @@ local function cleanup_spawned_objects()
                 spawned_object.respawn_function(spawned_object.pid)
             end
         end
+    end
+end
+
+local function delete_all_objects()
+    util.toast("Calling Housekeeping...")
+    for _, object in pairs(spawned_objects) do
+        delete_spawned_object(object)
     end
 end
 
@@ -174,6 +170,7 @@ menu.toggle_loop(menu.my_root(), "Unleash the Chaos", {"ballhail"}, "Drop all th
     util.yield(config.hail_delay)
 end)
 
+
 player_menu_actions = function(pid)
     menu.divider(menu.player_root(pid), "Balls!")
 
@@ -191,7 +188,7 @@ players.on_join(player_menu_actions)
 players.dispatch_on_join()
 
 
-local options_menu = menu.list(menu.my_root(), "Options")
+local options_menu = menu.list(menu.my_root(), "Configuration")
 
 menu.slider(options_menu, "Ball Drop Delay", {}, "The time between each ball drop", 30, 500, config.hail_delay, 10, function (value)
     config.hail_delay = value
@@ -211,6 +208,17 @@ menu.slider(options_menu, "Min Ball Height", {}, "Min height of balls", 0, 20, c
     config.min_rain_height = value
 end)
 
+local options_menu = menu.list(menu.my_root(), "Utilities")
+
+menu.action(options_menu, "Clean Up", {"cleanup"}, "Clean up your mess", delete_all_objects)
+
+menu.action(options_menu, "Check for Update", {}, "The script will automatically check for updates at most daily, but you can manually check using this option anytime.", function()
+    auto_update_config.check_interval = 0
+    if auto_updater.run_auto_update(auto_update_config) then
+        util.toast("No updates found")
+    end
+end)
+
 ---
 --- Script Meta
 ---
@@ -219,14 +227,13 @@ local script_meta_menu = menu.list(menu.my_root(), "Script Meta")
 
 menu.divider(script_meta_menu, SCRIPT_NAME:gsub(".lua", ""))
 menu.readonly(script_meta_menu, "Version", SCRIPT_VERSION)
---menu.hyperlink(script_meta_menu, "Source", "https://github.com/bigtuna/stand-lua-ballchaos", "View source on Github")
+menu.hyperlink(script_meta_menu, "Source", "https://github.com/bigtuna76/stand-lua-balldrop", "View source on Github")
 
 
 util.create_tick_handler(function()
     if spawned_objects then
-        cleanup_spawned_objects()
+        cleanup_expired_objects()
     end
     return true
 end)
-
 
