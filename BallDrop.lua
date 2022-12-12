@@ -105,10 +105,12 @@ local function cleanup_expired_objects()
 end
 
 local function delete_all_objects()
-    util.toast("Calling Housekeeping...")
-    for _, object in pairs(spawned_objects) do
+    local ball_count = 0
+    for i, object in pairs(spawned_objects) do
         delete_spawned_object(object)
+        ball_count = i
     end
+    util.toast("Housekeeping cleaned "..ball_count.." balls")
 end
 
 local function spawn_object_at_pos(pos, model, ttl)
@@ -236,4 +238,5 @@ util.create_tick_handler(function()
     end
     return true
 end)
+
 
