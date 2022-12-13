@@ -37,7 +37,6 @@ if auto_updater == true then error("Invalid auto-updater lib. Please delete your
 local auto_update_config = {
     source_url="https://raw.githubusercontent.com/bigtuna76/stand-lua-balldrop/main/BallDrop.lua",
     script_relpath=SCRIPT_RELPATH,
-    switch_to_branch="main",
     verify_file_begins_with="--",
     check_interval=604800,
     dependencies={}
