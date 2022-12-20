@@ -45,10 +45,10 @@ local auto_update_config = {
 util.require_natives(1651208000)
 
 local config = {
-    ball_lifetime = 20000,
-    hail_delay = 100,
+    ball_lifetime = 30000,
+    hail_delay = 250,
     max_rain_distance = 3,
-    min_rain_height = 1,
+    min_rain_height = 2,
     max_rain_height = 30
 }
 
@@ -60,15 +60,22 @@ local ball_models = {
     "stt_prop_stunt_soccer_ball"
 }
 
-local function get_random_ball()
-    return ball_models[math.random(1, #ball_models)]
-end
+local function array_remove(t, fnKeep)
+    local j, n = 1, #t;
+    for i=1,#t do
+        if (fnKeep(t, i, j)) then
+            -- Move i's kept value to j's position, if it's not already there.
+            if (i ~= j) then
+                t[j] = t[i];
+                t[i] = nil;
+            end
+            j = j + 1; -- Increment position of where we'll place the next kept value.
+        else
+            t[i] = nil;
+        end
+    end
 
-local function get_drop_range()
-    return {
-        x_max=config.max_rain_distance, y_max=config.max_rain_distance, z_max=config.max_rain_height,
-        x_min=config.max_rain_distance * -1, y_min=config.max_rain_distance * -1, z_min=config.min_rain_height,
-    }
+    return t;
 end
 
 local function load_hash(hash)
@@ -90,39 +97,39 @@ local function cleanup_expired_objects()
     for i, spawned_object in pairs(spawned_objects) do
         local lifetime = current_time - spawned_object.spawn_time
         local allowed_lifetime = config.ball_lifetime
-        if spawned_object.ttl ~= nil then
-            allowed_lifetime = spawned_object.ttl
-        end
+        -- if spawned_object.ttl ~= nil then
+        --     allowed_lifetime = spawned_object.ttl
+        -- end
         if lifetime > allowed_lifetime then
-            delete_spawned_object(spawned_object)
-            table.remove(spawned_objects, i)
-            if spawned_object.respawn_function then
-                spawned_object.respawn_function(spawned_object.pid)
-            end
+            spawned_objects = array_remove(spawned_objects, function(t, i)
+                return t[i].handle ~= spawned_object.handle
+            end)
+            delete_spawned_object(spawned_object)        
         end
     end
 end
 
 local function delete_all_objects()
     local ball_count = 0
-    for i, object in pairs(spawned_objects) do
-        delete_spawned_object(object)
-        ball_count = i
+    for i, spawned_object in pairs(spawned_objects) do
+        delete_spawned_object(spawned_object)        
+        ball_count = ball_count + 1
     end
+    spawned_objects = {}
     util.toast("Housekeeping cleaned "..ball_count.." balls")
 end
 
-local function spawn_object_at_pos(pos, model, ttl)
+local function spawn_object_at_pos(pos, model)
     local pickup_hash = util.joaat(model)
     load_hash(pickup_hash)
     local pickup_pos = v3.new(pos.x, pos.y, pos.z)
-    local pickup = entities.create_object(pickup_hash, pickup_pos)
+    local pickup = entities.create_object(pickup_hash, pickup_pos, true)
     ENTITY.SET_ENTITY_COLLISION(pickup, true, true)
     ENTITY.APPLY_FORCE_TO_ENTITY_CENTER_OF_MASS(
         pickup, 5, 0, 0, 1,
         true, false, true, true
     )
-    table.insert(spawned_objects, { handle=pickup, spawn_time=util.current_time_millis(), ttl=ttl})
+    table.insert(spawned_objects, { handle=pickup, spawn_time=util.current_time_millis()})
 end
 
 local function nearby_position(pos, range)
@@ -139,7 +146,18 @@ local function nearby_position(pos, range)
     }
 end
 
-local function ball_drop(position, range, model, ttl)
+local function get_drop_range()
+    return {
+        x_max=config.max_rain_distance, y_max=config.max_rain_distance, z_max=config.max_rain_height,
+        x_min=config.max_rain_distance * -1, y_min=config.max_rain_distance * -1, z_min=config.min_rain_height,
+    }
+end
+
+local function get_random_ball()
+    return ball_models[math.random(1, #ball_models)]
+end
+
+local function ball_drop(position, range, model)
     local spawn_position = position
     if range then
         spawn_position = nearby_position(position, range)
@@ -147,7 +165,7 @@ local function ball_drop(position, range, model, ttl)
     if model == nil then
         model = get_random_ball()
     end
-    spawn_object_at_pos(spawn_position, model, ttl)
+    spawn_object_at_pos(spawn_position, model)
 end
 
 local function ball_drop_player(pid, range)
@@ -191,7 +209,7 @@ players.dispatch_on_join()
 
 local options_menu = menu.list(menu.my_root(), "Configuration")
 
-menu.slider(options_menu, "Ball Drop Delay", {}, "The time between each ball drop", 30, 500, config.hail_delay, 10, function (value)
+menu.slider(options_menu, "Ball Drop Delay", {}, "The time between each ball drop", 200, 500, config.hail_delay, 10, function (value)
     config.hail_delay = value
 end)
 
