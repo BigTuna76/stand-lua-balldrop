@@ -97,9 +97,6 @@ local function cleanup_expired_objects()
     for i, spawned_object in pairs(spawned_objects) do
         local lifetime = current_time - spawned_object.spawn_time
         local allowed_lifetime = config.ball_lifetime
-        -- if spawned_object.ttl ~= nil then
-        --     allowed_lifetime = spawned_object.ttl
-        -- end
         if lifetime > allowed_lifetime then
             spawned_objects = array_remove(spawned_objects, function(t, i)
                 return t[i].handle ~= spawned_object.handle
@@ -123,7 +120,7 @@ local function spawn_object_at_pos(pos, model)
     local pickup_hash = util.joaat(model)
     load_hash(pickup_hash)
     local pickup_pos = v3.new(pos.x, pos.y, pos.z)
-    local pickup = entities.create_object(pickup_hash, pickup_pos, true)
+    local pickup = entities.create_object(pickup_hash, pickup_pos)
     ENTITY.SET_ENTITY_COLLISION(pickup, true, true)
     ENTITY.APPLY_FORCE_TO_ENTITY_CENTER_OF_MASS(
         pickup, 5, 0, 0, 1,
@@ -180,6 +177,14 @@ local function balldrop_player(pid)
     ball_drop_player(pid, get_drop_range())
 end
 
+------
+------ Menus
+------
+
+--- 
+--- Main
+---
+
 menu.action(menu.my_root(), "Drop the Ball", {"balldrop"}, "Drop a single ball", function()
     ball_drop(players.get_position(players.user()), get_drop_range())
 end)
@@ -189,9 +194,12 @@ menu.toggle_loop(menu.my_root(), "Unleash the Chaos", {"ballhail"}, "Drop all th
     util.yield(config.hail_delay)
 end)
 
+---
+--- Other players
+---
 
 player_menu_actions = function(pid)
-    menu.divider(menu.player_root(pid), "Balls!")
+    menu.divider(menu.player_root(pid), "BallDrop")
 
     menu.action(menu.player_root(pid), "Drop the Ball", {"balldrop"}, "", function()
         balldrop_player(pid)
@@ -206,6 +214,9 @@ end
 players.on_join(player_menu_actions)
 players.dispatch_on_join()
 
+---
+--- Configuration
+---
 
 local options_menu = menu.list(menu.my_root(), "Configuration")
 
@@ -226,6 +237,10 @@ end)
 menu.slider(options_menu, "Min Ball Height", {}, "Min height of balls", 0, 20, config.min_rain_height, 1, function (value)
     config.min_rain_height = value
 end)
+
+---
+--- Utilities
+---
 
 local options_menu = menu.list(menu.my_root(), "Utilities")
 
@@ -255,5 +270,3 @@ util.create_tick_handler(function()
     end
     return true
 end)
-
-
