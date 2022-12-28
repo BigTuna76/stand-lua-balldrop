@@ -42,7 +42,7 @@ local auto_update_config = {
     dependencies={}
 }
 
-util.require_natives(1651208000)
+util.require_natives(1663599433)
 
 local config = {
     ball_lifetime = 30000,
@@ -120,7 +120,7 @@ local function spawn_object_at_pos(pos, model)
     local pickup_hash = util.joaat(model)
     load_hash(pickup_hash)
     local pickup_pos = v3.new(pos.x, pos.y, pos.z)
-    local pickup = entities.create_object(pickup_hash, pickup_pos)
+    local pickup = entities.create_object(pickup_hash, pickup_pos, true)
     ENTITY.SET_ENTITY_COLLISION(pickup, true, true)
     ENTITY.APPLY_FORCE_TO_ENTITY_CENTER_OF_MASS(
         pickup, 5, 0, 0, 1,
