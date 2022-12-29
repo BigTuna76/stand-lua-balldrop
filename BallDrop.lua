@@ -5,7 +5,7 @@
 -- Special thanks to hexarobi for allowing me to steal much of the content of this script
 -- https://github.com/bigtuna76/stand-lua-balldrop
 
-local SCRIPT_VERSION = "0.1"
+local SCRIPT_VERSION = "0.11.happynow"
 
 ---
 --- Auto-Updater Lib Install
@@ -86,28 +86,52 @@ local function load_hash(hash)
 end
 
 local function untrack_spawned_object(spawned_object)
+    if ENTITY.DOES_ENTITY_EXIST(spawned_object.handle) == false then
+        util.toast("ERROR: attempted to untrack an object which does not exist")
+    end
     spawned_objects = array_remove(spawned_objects, function(t, i)
         return t[i].handle ~= spawned_object.handle
     end)
 end
 
 local function delete_spawned_object(spawned_object)
+    if ENTITY.DOES_ENTITY_EXIST(spawned_object.handle) == false then
+        util.toast("ERROR: attempted to delete an object which does not exist")
+    end
     if spawned_object.pilot_handle then
         entities.delete_by_handle(spawned_object.pilot_handle)
     end
     entities.delete_by_handle(spawned_object.handle)
 end
 
+-- local function cleanup_expired_objects()
+--     local current_time = util.current_time_millis()
+--     for i, spawned_object in pairs(spawned_objects) do
+--         local lifetime = current_time - spawned_object.spawn_time
+--         local allowed_lifetime = config.ball_lifetime
+--         if lifetime > allowed_lifetime then
+--             untrack_spawned_object(spawned_object)
+--             delete_spawned_object(spawned_object)        
+--         end
+--     end
+-- end
+
 local function cleanup_expired_objects()
-    local current_time = util.current_time_millis()
-    for i, spawned_object in pairs(spawned_objects) do
-        local lifetime = current_time - spawned_object.spawn_time
+    spawned_objects = array_remove(spawned_objects, function(t, i)
+        local spawned_object = t[i]
+        local lifetime = util.current_time_millis() - spawned_object.spawn_time
         local allowed_lifetime = config.ball_lifetime
+        --util.toast("Checking ball "..spawned_object.handle)
         if lifetime > allowed_lifetime then
-            untrack_spawned_object(spawned_object)
-            delete_spawned_object(spawned_object)        
+            util.toast("Deleting ball "..spawned_object.handle.." "..#t.." left")
+            entities.delete_by_handle(spawned_object.handle)
+            if ENTITY.DOES_ENTITY_EXIST(spawned_object.handle) then
+                util.toast("Delete failed!")
+            end
+            return false
         end
-    end
+        return true
+    end)
 end
 
 local function delete_all_objects()
