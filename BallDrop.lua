@@ -42,7 +42,7 @@ local auto_update_config = {
     dependencies={}
 }
 
-util.require_natives(1663599433)
+util.require_natives(1651208000)
 
 local config = {
     ball_lifetime = 30000,
@@ -85,6 +85,12 @@ local function load_hash(hash)
     end
 end
 
+local function untrack_spawned_object(spawned_object)
+    spawned_objects = array_remove(spawned_objects, function(t, i)
+        return t[i].handle ~= spawned_object.handle
+    end)
+end
+
 local function delete_spawned_object(spawned_object)
     if spawned_object.pilot_handle then
         entities.delete_by_handle(spawned_object.pilot_handle)
@@ -98,9 +104,7 @@ local function cleanup_expired_objects()
         local lifetime = current_time - spawned_object.spawn_time
         local allowed_lifetime = config.ball_lifetime
         if lifetime > allowed_lifetime then
-            spawned_objects = array_remove(spawned_objects, function(t, i)
-                return t[i].handle ~= spawned_object.handle
-            end)
+            untrack_spawned_object(spawned_object)
             delete_spawned_object(spawned_object)        
         end
     end
@@ -108,11 +112,12 @@ end
 
 local function delete_all_objects()
     local ball_count = 0
+    util.toast("Found "..#spawned_objects.." balls to clean")
     for i, spawned_object in pairs(spawned_objects) do
-        delete_spawned_object(spawned_object)        
+        untrack_spawned_object(spawned_object)
+        delete_spawned_object(spawned_object)
         ball_count = ball_count + 1
     end
-    spawned_objects = {}
     util.toast("Housekeeping cleaned "..ball_count.." balls")
 end
 
@@ -165,16 +170,10 @@ local function ball_drop(position, range, model)
     spawn_object_at_pos(spawn_position, model)
 end
 
-local function ball_drop_player(pid, range)
-    ball_drop(players.get_position(pid), range)
-end
-
-local function ball_drop_vehicle(vehicle, range)
-    ball_drop(ENTITY.GET_ENTITY_COORDS(vehicle), range)
-end
-
 local function balldrop_player(pid)
-    ball_drop_player(pid, get_drop_range())
+    local position = players.get_position(pid)
+    local range = get_drop_range()
+    ball_drop(position, range)
 end
 
 ------
