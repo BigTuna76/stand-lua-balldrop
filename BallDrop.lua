@@ -5,7 +5,7 @@
 -- Special thanks to hexarobi for allowing me to steal much of the content of this script
 -- https://github.com/bigtuna76/stand-lua-balldrop
 
-local SCRIPT_VERSION = "0.11.happynow"
+local SCRIPT_VERSION = "0.2b"
 
 ---
 --- Auto-Updater Lib Install
@@ -85,45 +85,12 @@ local function load_hash(hash)
     end
 end
 
-local function untrack_spawned_object(spawned_object)
-    if ENTITY.DOES_ENTITY_EXIST(spawned_object.handle) == false then
-        util.toast("ERROR: attempted to untrack an object which does not exist")
-    end
-    spawned_objects = array_remove(spawned_objects, function(t, i)
-        return t[i].handle ~= spawned_object.handle
-    end)
-end
-
-local function delete_spawned_object(spawned_object)
-    if ENTITY.DOES_ENTITY_EXIST(spawned_object.handle) == false then
-        util.toast("ERROR: attempted to delete an object which does not exist")
-    end
-    if spawned_object.pilot_handle then
-        entities.delete_by_handle(spawned_object.pilot_handle)
-    end
-    entities.delete_by_handle(spawned_object.handle)
-end
-
--- local function cleanup_expired_objects()
---     local current_time = util.current_time_millis()
---     for i, spawned_object in pairs(spawned_objects) do
---         local lifetime = current_time - spawned_object.spawn_time
---         local allowed_lifetime = config.ball_lifetime
---         if lifetime > allowed_lifetime then
---             untrack_spawned_object(spawned_object)
---             delete_spawned_object(spawned_object)        
---         end
---     end
--- end
-
 local function cleanup_expired_objects()
     spawned_objects = array_remove(spawned_objects, function(t, i)
         local spawned_object = t[i]
         local lifetime = util.current_time_millis() - spawned_object.spawn_time
         local allowed_lifetime = config.ball_lifetime
-        --util.toast("Checking ball "..spawned_object.handle)
-        if lifetime > allowed_lifetime then
-            util.toast("Deleting ball "..spawned_object.handle.." "..#t.." left")
+        if util.current_time_millis() > spawned_object.death_time then
             entities.delete_by_handle(spawned_object.handle)
             if ENTITY.DOES_ENTITY_EXIST(spawned_object.handle) then
                 util.toast("Delete failed!")
@@ -136,13 +103,25 @@ end
 
 local function delete_all_objects()
     local ball_count = 0
-    util.toast("Found "..#spawned_objects.." balls to clean")
+    -- Mark balls we know about for death
     for i, spawned_object in pairs(spawned_objects) do
-        untrack_spawned_object(spawned_object)
-        delete_spawned_object(spawned_object)
+        spawned_object.death_time = util.current_time_millis()
         ball_count = ball_count + 1
     end
-    util.toast("Housekeeping cleaned "..ball_count.." balls")
+    -- Find any orphaned balls and remove them too
+    local all_objects = entities.get_all_objects_as_handles()
+    for _, ball_model in pairs(ball_models) do
+        local ball_hash = util.joaat(ball_model)
+        for _, object in pairs(all_objects) do
+            local object_hash = ENTITY.GET_ENTITY_MODEL(object)
+            if object_hash == ball_hash then
+                entities.delete_by_handle(object)
+                ball_count = ball_count + 1
+            end
+        end
+    end
+
+    util.toast("Housekeeping is cleaning "..ball_count.." balls")
 end
 
 local function spawn_object_at_pos(pos, model)
@@ -155,7 +134,12 @@ local function spawn_object_at_pos(pos, model)
         pickup, 5, 0, 0, 1,
         true, false, true, true
     )
-    table.insert(spawned_objects, { handle=pickup, spawn_time=util.current_time_millis()})
+    local spawned_object = {
+        handle=pickup,
+        spawn_time=util.current_time_millis(),
+        death_time=util.current_time_millis() + config.ball_lifetime
+    }
+    table.insert(spawned_objects, spawned_object)
 end
 
 local function nearby_position(pos, range)
